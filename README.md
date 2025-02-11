@@ -21,6 +21,10 @@ A voice transcription tool using faster-whisper that records audio and converts 
   # Fedora
   sudo dnf install sox
   ```
+- `portaudio` headers (for PyAudio)
+  ```
+  sudo apt isntall portaudio19-dev
+  ```
 - `wl-clipboard` for Wayland clipboard support:
   ```bash
   # Ubuntu/Debian
@@ -39,7 +43,7 @@ A voice transcription tool using faster-whisper that records audio and converts 
 1. Insall dependencies
     ```
     # Ubuntu
-    sudo apt install sox wl-clipboard python3
+    sudo apt install sox wl-clipboard python3 portaudio19-dev
     ```
 1. Clone this repository
 
