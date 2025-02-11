@@ -11,6 +11,7 @@ import threading
 import signal
 from faster_whisper import WhisperModel
 
+
 RECORDING_PATH = "/tmp/recordings"
 RECORDING_FILE = os.path.join(RECORDING_PATH, "recording.wav")
 
@@ -24,9 +25,16 @@ model_size = "small.en"
 recording_thread = None
 sox_process = None  # Store the subprocess object
 
+def red(text):
+    return f"\033[91m{text}\033[0m"
+def green(text):
+    return f"\033[92m{text}\033[0m"
+def blue(text):
+    return f"\033[94m{text}\033[0m"
+
 def record_audio():
     global sox_process
-    print("Recording...")
+    print(red("Recording..."))
     try:
         sox_process = subprocess.Popen(
             ["sox", "-d", "-r", "16000", "-c", "1", "-b", "16", RECORDING_FILE],
@@ -38,7 +46,7 @@ def record_audio():
     except KeyboardInterrupt:
         print("Recording stopped.")
 
-
+# Main loop
 while True:
     if recording_thread is None or not recording_thread.is_alive():
         recording_thread = threading.Thread(target=record_audio)
@@ -52,7 +60,7 @@ while True:
         end_time = time.time()
         print(f"Model loading time: {end_time - start_time:.2f} seconds")
 
-    if input("Press Enter to stop recording"):
+    if input(red("Press Enter to stop recording")):
         break
 
     if recording_thread and recording_thread.is_alive():
@@ -70,11 +78,11 @@ while True:
     start_time = time.time()
 
     segments, info = model.transcribe(
-        RECORDING_FILE, 
-        beam_size=2, 
-        language="en", 
-        vad_filter=True, 
-        vad_parameters=dict(min_silence_duration_ms=500) # Remove silence that is longer than 500ms
+        RECORDING_FILE,
+        beam_size=2,
+        language="en",
+        vad_filter=True,
+        vad_parameters=dict(min_silence_duration_ms=500)  # Remove silence that is longer than 500ms
     )
 
     transcription = " ".join([segment.text for segment in segments])
@@ -82,14 +90,13 @@ while True:
 
     end_time = time.time()
 
-
     print(f"Transcription time: {end_time - start_time:.2f} seconds")
-    print("+" + "-- Transcription " + "-" * 33 + "+")
+    print(green(f"+-- Transcription {'-' * 33}+"))
     print(transcription)
-    print("+" + "-" * 50 + "+")
+    print(green(f"+{'-' * 50}+"))
     subprocess.run(["wl-copy", transcription])
     print(f"Transcription copied to clipboard")
     print("")
 
-    if input("Press Enter to record another message, or 'q' + Enter to quit: ").lower() == 'q':
+    if input(blue("Press Enter to record another message, or 'q' + Enter to quit: ")).lower() == 'q':
         break
