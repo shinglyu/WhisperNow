@@ -1,6 +1,6 @@
 # WhisperNow: Voice Transcription Tool (Linux)
 
-A real-time voice transcription tool using faster-whisper that records audio and converts speech to text on Linux systems.
+A voice transcription tool using faster-whisper that records audio and converts speech to text on Linux systems.
 
 ## Features
 
