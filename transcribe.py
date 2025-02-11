@@ -29,8 +29,8 @@ def red(text):
     return f"\033[91m{text}\033[0m"
 def green(text):
     return f"\033[92m{text}\033[0m"
-def blue(text):
-    return f"\033[94m{text}\033[0m"
+def yellow(text):
+    return f"\033[93m{text}\033[0m"
 
 def record_audio():
     global sox_process
@@ -98,5 +98,5 @@ while True:
     print(f"Transcription copied to clipboard")
     print("")
 
-    if input(blue("Press Enter to record another message, or 'q' + Enter to quit: ")).lower() == 'q':
+    if input(yellow("Press Enter to record another message, or 'q' + Enter to quit: ")).lower() == 'q':
         break
