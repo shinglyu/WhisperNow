@@ -69,7 +69,13 @@ while True:
     print(f"Transcribing...")
     start_time = time.time()
 
-    segments, info = model.transcribe(RECORDING_FILE, beam_size=1, language="en")
+    segments, info = model.transcribe(
+        RECORDING_FILE, 
+        beam_size=2, 
+        language="en", 
+        vad_filter=True, 
+        vad_parameters=dict(min_silence_duration_ms=500) # Remove silence that is longer than 500ms
+    )
 
     transcription = " ".join([segment.text for segment in segments])
     transcription = transcription.strip()
