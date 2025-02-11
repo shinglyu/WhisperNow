@@ -35,7 +35,6 @@ source = sr.Microphone(sample_rate=16000)
 temp_file = NamedTemporaryFile().name
 
 recording_thread = None
-sox_process = None  # Store the subprocess object
 
 def red(text):
     return f"\033[91m{text}\033[0m"
@@ -54,7 +53,7 @@ def record_callback(_, audio: sr.AudioData) -> None:
 with source:
     recorder.adjust_for_ambient_noise(source)
     recorder.pause_threshold = 1.5  # Adjust pause_threshold as needed
-recorder.listen_in_background(source, record_callback, phrase_time_limit=None)  # Adjust phrase_time_limit as needed
+stop_listening = recorder.listen_in_background(source, record_callback, phrase_time_limit=None)  # Adjust phrase_time_limit as needed
 print(red("Background recording started... Press Enter to stop recording and transcribe."))
 
 transcriptions = ['']  # Transcription list
@@ -74,14 +73,16 @@ def transcribe_available_audio():
             f.write(wav_data.read())
 
         text = ""
+        start_time = time.time()
         segments, info = model.transcribe(temp_file, beam_size=2, language="en", vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500))
         for segment in segments:
             text += segment.text
-        transcriptions.append(text)  # Update transcription
+        transcriptions.append(text.strip())  # Update transcription
+        stop_time = time.time()
 
         # Print current transcription (optional, for visual feedback)
         # print("\rTranscribing live: " + transcription[-1][-60:], end="")  # Print last 60 chars
-        print(transcriptions[-1])
+        print(f"{green(transcriptions[-1])} ({stop_time - start_time:.2f} s)")
 
 # Main loop for transcription
 while True:
@@ -103,6 +104,7 @@ while True:
             user_input = sys.stdin.readline().strip().lower()
             if user_input == '':  # Enter pressed to stop current segment
                 print("\nStopping... Transcribing last segment.")
+                stop_listening(wait_for_stop=True)
                 transcribe_available_audio()
                 full_transcription = " ".join(transcriptions).strip()
 
