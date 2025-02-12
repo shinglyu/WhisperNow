@@ -85,7 +85,7 @@ while True:
         vad_parameters=dict(min_silence_duration_ms=500)  # Remove silence that is longer than 500ms
     )
 
-    transcription = " ".join([segment.text for segment in segments])
+    transcription = " ".join([segment.text.strip() for segment in segments])
     transcription = transcription.strip()
 
     end_time = time.time()
