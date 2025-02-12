@@ -87,11 +87,11 @@ try:
             data = q.get()
             if rec.AcceptWaveform(data):
                 result = json.loads(rec.Result())
-                print(result)
+                print(result['text'], flush=True)
                 transcriptions.append(result['text'])
             else:
                 partial_result = json.loads(rec.PartialResult())
-                print(partial_result)
+                print(partial_result['partial'], end="\r", flush=True)
             if dump_fn is not None:
                 dump_fn.write(data)
 
