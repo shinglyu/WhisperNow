@@ -4,7 +4,11 @@
 # dependencies = [
 #     "sounddevice",
 #     "vosk",
+#     "rpunct",
 # ]
+#
+# [tool.uv.sources]
+# rpunct = { git = "https://github.com/shinglyu/rpunct" }
 # ///
 
 # prerequisites: as described in https://alphacephei.com/vosk/install and also python module `sounddevice` (simply run command `pip install sounddevice`)
@@ -17,11 +21,25 @@ import sys
 import sounddevice as sd
 import json
 import subprocess
+import threading
 
 from vosk import Model, KaldiRecognizer
 
 q = queue.Queue()
 transcriptions = []
+punctuation_queue = queue.Queue()
+result_queue = queue.Queue()
+
+def punctuate_text(punctuation_queue, result_queue):
+    """Loads rpunct and punctuates the text from punctuation_queue, putting the result in result_queue."""
+    from rpunct import RestorePuncts
+    rpunct = RestorePuncts(use_cuda=False)
+    while True:
+        text = punctuation_queue.get()
+        if text is None:  # Sentinel value to stop the thread
+            break
+        punctuated_text = rpunct.punctuate(text)
+        result_queue.put(punctuated_text)
 
 def int_or_str(text):
     """Helper function for argument parsing."""
@@ -76,6 +94,10 @@ try:
     else:
         dump_fn = None
 
+    punctuation_thread = threading.Thread(target=punctuate_text, args=(punctuation_queue, result_queue))
+    punctuation_thread.daemon = True  # Allow the program to exit even if the thread is running
+    punctuation_thread.start()
+
     with sd.RawInputStream(samplerate=args.samplerate, blocksize = 8000, device=args.device,
             dtype="int16", channels=1, callback=callback):
         print("#" * 80)
@@ -96,14 +118,20 @@ try:
                 dump_fn.write(data)
 
 except KeyboardInterrupt:
-    print("\nDone")
+    print("\nStopping...")
+    transcriptions.append(partial_result['partial'])
     full_transcription = ' '.join(transcriptions)
-    print("Full Transcription:", full_transcription)
+
+    punctuation_queue.put(full_transcription)
+    full_transcription_with_punctuation = result_queue.get()
+
+    print("Full Transcription:", full_transcription_with_punctuation)
     try:
-        subprocess.run(['wl-copy'], input=full_transcription, text=True, check=True)
+        subprocess.run(['wl-copy'], input=full_transcription_with_punctuation, text=True, check=True)
         print("Transcription copied to clipboard.")
     except FileNotFoundError:
         print("Error: wl-copy not found. Please make sure it's installed.")
     parser.exit(0)
+
 except Exception as e:
     parser.exit(type(e).__name__ + ": " + str(e))
