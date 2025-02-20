@@ -44,7 +44,6 @@ class TranscribeGUI:
         self.is_recording = False
         self.transcriptions = []  # List of (checkbox_var, text) tuples
         self.current_recording = None
-        self.transcribing_label = None
         self.is_transcribing = False
         
         # Thread control
@@ -72,6 +71,14 @@ class TranscribeGUI:
             font=("TkDefaultFont", 14, "bold"),  # Increased font size
             foreground="red"
         )
+        style.configure(
+            "Queue.TLabel",
+            foreground="black"
+        )
+        style.configure(
+            "QueueActive.TLabel",
+            foreground="green"
+        )
         
         self.record_button = ttk.Button(
             control_frame,
@@ -87,7 +94,8 @@ class TranscribeGUI:
         
         self.queue_label = ttk.Label(
             control_frame,
-            text="Queue: 0"
+            text="Queue: 0",
+            style="Queue.TLabel"
         )
         self.queue_label.pack(side='right', padx=5)
         
@@ -316,22 +324,10 @@ class TranscribeGUI:
         count = self.transcription_queue.qsize()
         if self.is_transcribing:
             count += 1
-        self.queue_label.configure(text=f"Queue: {count}")
-        
-        # Update transcribing label
-        if count > 0 or self.is_transcribing:
-            if self.transcribing_label is None:
-                self.transcribing_label = ttk.Label(
-                    self.scrollable_frame,
-                    text="Transcribing...",
-                    foreground='gray',
-                    wraplength=self.canvas.winfo_width() - 20
-                )
-                self.transcribing_label.pack(fill='x', padx=5, pady=2)
-                self.canvas.yview_moveto(1.0)
-        elif self.transcribing_label is not None:
-            self.transcribing_label.destroy()
-            self.transcribing_label = None
+        self.queue_label.configure(
+            text=f"Queue: {count}",
+            style="QueueActive.TLabel" if count > 0 else "Queue.TLabel"
+        )
     
     def cleanup(self):
         # Clean up recording files
