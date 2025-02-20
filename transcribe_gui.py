@@ -40,7 +40,7 @@ class TranscribeGUI:
         self.transcriptions = []  # List of (checkbox_var, text) tuples
         
         self.setup_gui()
-        self.start_transcription_thread()
+        self.start_background_threads()
         
     def setup_gui(self):
         # Control frame
@@ -138,14 +138,6 @@ class TranscribeGUI:
                 ["sox", "-d", "-r", "16000", "-c", "1", "-b", "16", RECORDING_FILE],
                 stderr=subprocess.DEVNULL,
             )
-            
-            # Start checking for transcriptions
-            self.check_transcriptions_thread = threading.Thread(
-                target=self.check_transcriptions
-            )
-            self.check_transcriptions_thread.daemon = True
-            self.check_transcriptions_thread.start()
-            
         except subprocess.CalledProcessError:
             self.stop_recording()
     
@@ -161,15 +153,22 @@ class TranscribeGUI:
         self.update_queue_count()
     
     def check_transcriptions(self):
-        while self.is_recording:
+        while True:  # Run continuously
             try:
-                transcription = self.result_queue.get_nowait()
+                # Use blocking get with timeout to avoid busy loop
+                transcription = self.result_queue.get(timeout=0.1)
                 self.root.after(0, self.add_new_transcription, transcription)
                 self.update_queue_count()
             except queue.Empty:
-                time.sleep(0.1)
+                continue
     
-    def start_transcription_thread(self):
+    def start_background_threads(self):
+        # Start transcription checker thread
+        check_thread = threading.Thread(target=self.check_transcriptions)
+        check_thread.daemon = True
+        check_thread.start()
+        
+        # Start transcription worker thread
         def transcribe_audio():
             while True:
                 audio_file = self.transcription_queue.get()
