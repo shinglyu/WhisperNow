@@ -155,12 +155,20 @@ class TranscribeGUI:
         copy_frame = ttk.Frame(self.root)
         copy_frame.pack(fill='x', padx=5, pady=5)
         
+        copy_all_button = ttk.Button(
+            copy_frame,
+            text="Copy All",
+            command=self.copy_all
+        )
+        copy_all_button.pack(side='right', padx=5)
+
         copy_button = ttk.Button(
             copy_frame,
             text="Copy Selected",
             command=self.copy_selected
         )
         copy_button.pack(side='right', padx=5)
+
     
     def toggle_recording(self):
         if not self.is_recording:
@@ -311,6 +319,12 @@ class TranscribeGUI:
         # Ensure new transcription is visible
         self.canvas.yview_moveto(1.0)
     
+    def copy_all(self):
+        all_texts = [text for _, text in self.transcriptions]
+        if all_texts:
+            combined_text = "\n".join(all_texts)
+            subprocess.run(["wl-copy", combined_text])
+
     def copy_selected(self):
         selected_texts = [
             text for var, text in self.transcriptions 
