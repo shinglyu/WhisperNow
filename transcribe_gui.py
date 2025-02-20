@@ -44,9 +44,8 @@ class TranscribeGUI:
         self.is_recording = False
         self.transcriptions = []  # List of (checkbox_var, text) tuples
         self.current_recording = None
-        
-        # Track placeholders
-        self.placeholders = {}  # Map file paths to their placeholder frames
+        self.transcribing_label = None
+        self.is_transcribing = False
         
         # Thread control
         self.transcription_thread = None
@@ -76,7 +75,7 @@ class TranscribeGUI:
         
         self.record_button = ttk.Button(
             control_frame,
-            text="⏺ Record (Space)",
+            text="Record (Space)",
             command=self.toggle_recording,
             style="Record.TButton",
             width=20  # Make button wider
@@ -164,7 +163,7 @@ class TranscribeGUI:
     def start_recording(self):
         self.is_recording = True
         self.record_button.configure(
-            text="⏹ Stop (Space)",
+            text="Stop (Space)",
             style="Recording.TButton"
         )
         
@@ -186,31 +185,14 @@ class TranscribeGUI:
         
         self.is_recording = False
         self.record_button.configure(
-            text="⏺ Record (Space)",
+            text="Record (Space)",
             style="Record.TButton"
         )
         
         # Add recording to transcription queue
         if self.current_recording:
             self.transcription_queue.put(self.current_recording)
-            self.add_placeholder(self.current_recording)
             self.update_queue_count()
-    
-    def add_placeholder(self, file_path):
-        frame = ttk.Frame(self.scrollable_frame)
-        frame.pack(fill='x', padx=5, pady=2)
-        
-        # Placeholder text with spinner
-        label = ttk.Label(
-            frame,
-            text="⏳ Transcribing...",
-            foreground='gray',
-            wraplength=self.canvas.winfo_width() - 20
-        )
-        label.pack(fill='x', expand=True)
-        
-        self.placeholders[file_path] = frame
-        self.canvas.yview_moveto(1.0)
     
     def check_transcriptions(self):
         while True:  # Run continuously
@@ -221,7 +203,7 @@ class TranscribeGUI:
                 if transcription.strip():
                     subprocess.run(["wl-copy", transcription])
                     self.root.after(0, self.add_new_transcription, file_path, transcription)
-                self.update_queue_count()
+                self.root.after(0, self.update_queue_count)
             except queue.Empty:
                 continue
     
@@ -231,6 +213,9 @@ class TranscribeGUI:
                 audio_file = self.transcription_queue.get(timeout=0.5)
                 if audio_file is None:
                     break
+                
+                self.is_transcribing = True
+                self.root.after(0, self.update_queue_count)
                 
                 segments, info = self.model.transcribe(
                     audio_file,
@@ -243,13 +228,15 @@ class TranscribeGUI:
                 transcription = " ".join([segment.text.strip() for segment in segments])
                 transcription = transcription.strip()
                 
-                # Always send result to update or remove placeholder
+                # Always send result
                 self.result_queue.put((audio_file, transcription))
                 self.transcription_queue.task_done()
+                self.is_transcribing = False
                 
             except queue.Empty:
                 continue
             except Exception as e:
+                self.is_transcribing = False
                 error_msg = f"Transcription error: {str(e)}\n{traceback.format_exc()}"
                 print(error_msg)  # For debugging
                 
@@ -279,11 +266,6 @@ class TranscribeGUI:
         self.transcription_thread.start()
     
     def add_new_transcription(self, file_path, transcription):
-        # Always remove placeholder
-        if file_path in self.placeholders:
-            self.placeholders[file_path].destroy()
-            del self.placeholders[file_path]
-        
         # Only add non-empty transcriptions
         if not transcription.strip():
             return
@@ -332,7 +314,24 @@ class TranscribeGUI:
     
     def update_queue_count(self):
         count = self.transcription_queue.qsize()
+        if self.is_transcribing:
+            count += 1
         self.queue_label.configure(text=f"Queue: {count}")
+        
+        # Update transcribing label
+        if count > 0 or self.is_transcribing:
+            if self.transcribing_label is None:
+                self.transcribing_label = ttk.Label(
+                    self.scrollable_frame,
+                    text="Transcribing...",
+                    foreground='gray',
+                    wraplength=self.canvas.winfo_width() - 20
+                )
+                self.transcribing_label.pack(fill='x', padx=5, pady=2)
+                self.canvas.yview_moveto(1.0)
+        elif self.transcribing_label is not None:
+            self.transcribing_label.destroy()
+            self.transcribing_label = None
     
     def cleanup(self):
         # Clean up recording files
