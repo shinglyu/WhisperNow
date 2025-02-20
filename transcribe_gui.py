@@ -31,6 +31,11 @@ class TranscribeGUI:
         self.root.title("WhisperNow")
         self.root.geometry("600x800")
         
+        # Spinner configuration
+        self.spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"  # Braille pattern for smoother animation
+        self.spinner_idx = 0
+        self.is_spinning = False
+        
         # Initialize queues
         self.transcription_queue = queue.Queue()
         self.result_queue = queue.Queue()
@@ -92,12 +97,23 @@ class TranscribeGUI:
         # Bind spacebar to record button
         self.root.bind("<space>", lambda e: self.toggle_recording())
         
+        # Queue frame for label and spinner
+        queue_frame = ttk.Frame(control_frame)
+        queue_frame.pack(side='right', padx=5)
+        
         self.queue_label = ttk.Label(
-            control_frame,
+            queue_frame,
             text="Queue: 0",
             style="Queue.TLabel"
         )
-        self.queue_label.pack(side='right', padx=5)
+        self.queue_label.pack(side='left')
+        
+        self.spinner_label = ttk.Label(
+            queue_frame,
+            text=" ",
+            width=1
+        )
+        self.spinner_label.pack(side='left')
         
         # Transcription frame
         transcription_frame = ttk.Frame(self.root)
@@ -334,6 +350,15 @@ class TranscribeGUI:
             combined_text = "\n".join(selected_texts)
             subprocess.run(["wl-copy", combined_text])
     
+    def update_spinner(self):
+        if self.transcription_queue.qsize() > 0 or self.is_transcribing:
+            self.spinner_idx = (self.spinner_idx + 1) % len(self.spinner_chars)
+            self.spinner_label.configure(text=self.spinner_chars[self.spinner_idx])
+            self.root.after(100, self.update_spinner)
+        else:
+            self.spinner_label.configure(text=" ")
+            self.is_spinning = False
+
     def update_queue_count(self):
         count = self.transcription_queue.qsize()
         if self.is_transcribing:
@@ -342,6 +367,11 @@ class TranscribeGUI:
             text=f"Queue: {count}",
             style="QueueActive.TLabel" if count > 0 else "Queue.TLabel"
         )
+        
+        # Start spinner animation if not already running
+        if count > 0 and not self.is_spinning:
+            self.is_spinning = True
+            self.root.after(0, self.update_spinner)
     
     def cleanup(self):
         # Clean up recording files
